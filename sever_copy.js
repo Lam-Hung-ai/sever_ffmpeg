@@ -34,7 +34,7 @@ const device_ip = '192.168.1.30'; // Thay đổi thành IP của máy chủ bạ
       {
         kind: 'audio',
         mimeType: 'audio/opus',
-        preferredPayloadType: 111,
+        preferredPayloadType: 96,
         clockRate: 48000,
         channels: 2,
       },
@@ -144,15 +144,17 @@ async function createConsumer(transport, producer) {
     // Tạo SDP content
     const sdpContent = `
 v=0
-o=- 0 0 IN IP4 ${device_ip}  # Địa chỉ IP của bạn
+o=- 0 0 IN IP4 ${device_ip}
 s=AudioStream
 c=IN IP4 ${device_ip}
 t=0 0
-m=audio ${consumerTransport.tuple.localPort} RTP/AVP 96  # Cổng RTP và payload type
-a=rtpmap:96 opus/48000/2  # Codec opus, sample rate 48kHz, stereo
-a=fmtp:96 minptime=10  # Tham số cho opus (tùy chọn)
-a=ssrc:${audioConsumer.rtpParameters.encodings[0].ssrc}  # SSRC của consumer
-    `;
+m=audio ${consumerTransport.tuple.localPort} RTP/AVP 96
+a=rtpmap:96 opus/48000/2
+a=fmtp:96 minptime=10
+a=ssrc:${audioConsumer.rtpParameters.encodings[0].ssrc}
+a=rtcp:${consumerTransport.tuple.localPort + 1} IN IP4 ${device_ip}
+`;
+    
     
     fs.writeFileSync('consumer.sdp', sdpContent);
     console.log('SDP file created successfully');
