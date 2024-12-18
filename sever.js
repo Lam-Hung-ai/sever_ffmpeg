@@ -14,132 +14,133 @@ httpsServer.listen(9000, () => {
   console.log('Server is listening on port: 9000');
 });
 
-let worker, router, producerTransport, consumerTransport, audioProducer, audioConsumer;
+let worker, router, producerTransport, audioProducer, consumerTransport, consumerTransport2;
+let audioConsumers = [];  // Mảng lưu trữ các consumer
 
-const device_ip = '192.168.1.32'; // Thay đổi thành IP của máy chủ bạn
+const device_ip = '192.168.21.30'; // Thay đổi thành IP của máy chủ bạn
 
 (async () => {
-  // Tạo Worker
-  worker = await mediasoup.createWorker({
-    logLevel: 'error',
-    logTags: ['rtp', 'srtp', 'rtcp'],
-    rtcMinPort: 40000,
-    rtcMaxPort: 49999,
-  });
-  console.log('Mediasoup worker created');
+  try {
+    worker = await mediasoup.createWorker({
+      logLevel: 'error',
+      logTags: ['rtp', 'srtp', 'rtcp'],
+      rtcMinPort: 40000,
+      rtcMaxPort: 49999,
+    });
+    console.log('Mediasoup worker created');
 
-  // Tạo Router
-  router = await worker.createRouter({
-    mediaCodecs: [
-      {
-        kind: 'audio',
-        mimeType: 'audio/opus',
-        clockRate: 48000,
-        channels: 2,
-      },
-    ],
-  });
-  console.log('Mediasoup router created');
-
-  // Tạo Producer Transport
-  producerTransport = await router.createPlainTransport({
-    listenInfo: {
-      protocol: "udp",
-      ip: "0.0.0.0",
-      announcedAddress: device_ip,
-      port: 40001
-    },
-    rtcpMux: true,
-    comedia: true,
-  });
-  console.log('Producer PlainTransport created:', producerTransport.tuple);
-
-  // Tạo Consumer Transport
-  consumerTransport = await router.createPlainTransport({
-    listenInfo: {
-      protocol: "udp",
-      ip: "0.0.0.0",
-      announcedAddress: device_ip,
-      port: 40003
-    },
-    rtcpMux: true,
-    comedia: false,
-  });
-  console.log('Consumer PlainTransport created:', consumerTransport.tuple);
-
-  // Lắng nghe thông tin từ Consumer Transport
-  consumerTransport.on('tuple', (tuple) => {
-    console.log('Consumer Transport tuple:', tuple);
-  });
-
-  // Tạo Producer
-  producerTransport.produce({
-    kind: 'audio',
-    rtpParameters: {
-      codecs: [
+    router = await worker.createRouter({
+      mediaCodecs: [
         {
+          kind: 'audio',
           mimeType: 'audio/opus',
           clockRate: 48000,
-          payloadType: 96,
+          preferredPayloadType: 111,
           channels: 2,
         },
       ],
-      encodings: [{ ssrc: 12345678 }],
-    },
-  })
-    .then((producer) => {
-      audioProducer = producer;
-      console.log('Audio producer created successfully');
-      console.log('Producer id:', producer.id);
-      // Tạo Consumer sau khi Producer được tạo
-      createConsumer(consumerTransport, audioProducer);
-    })
-    .catch((err) => {
-      console.error('Error creating audio producer:', err);
     });
+    console.log('Mediasoup router created');
+
+    producerTransport = await router.createPlainTransport({
+      listenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40001
+      },
+      rtcpListenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40002
+      },
+      rtcpMux: false,
+      comedia: true,
+    });
+
+    consumerTransport = await router.createPlainTransport({
+      listenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40003
+      },
+      rtcpListenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40004
+      },
+      rtcpMux: false,
+      comedia: false,
+    });
+
+    consumerTransport2 = await router.createPlainTransport({
+      listenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40005
+      },
+      rtcpListenInfo: {
+        protocol: "udp",
+        ip: "0.0.0.0",
+        announcedAddress: device_ip,
+        port: 40006
+      },
+      rtcpMux: false,
+      comedia: false,
+    });
+
+    const producer = await producerTransport.produce({
+      kind: 'audio',
+      rtpParameters: {
+        codecs: [
+          {
+            mimeType: 'audio/opus',
+            clockRate: 48000,
+            payloadType: 101,
+            channels: 2,
+          },
+        ],
+        encodings: [{ ssrc: 12345678 }],
+      },
+    });
+
+    audioProducer = producer;
+    console.log('Audio producer created successfully');
+    console.log('Producer id:', producer.id);
+    console.log('Producer :', producer.rtpParameters);
+
+    // Tạo Consumer sau khi Producer được tạo
+    await createConsumer(consumerTransport, audioProducer, 1);
+    await createConsumer(consumerTransport2, audioProducer, 2);
+  } catch (err) {
+    console.error('Error during setup:', err);
+  }
 })();
 
 // Tạo Consumer
-async function createConsumer(transport, producer) {
+async function createConsumer(transport, producer, stt) {
   try {
-    console.log("Producer SSRC:", producer.rtpParameters.encodings[0].ssrc);
-
-    audioConsumer = await transport.consume({
+    const consumer = await transport.consume({
       producerId: producer.id,
       rtpCapabilities: router.rtpCapabilities,
-      paused: false,
     });
 
-    console.log('Audio consumer created:', {
-      id: audioConsumer.id,
-      kind: audioConsumer.kind,
-      rtpParameters: audioConsumer.rtpParameters,
+    audioConsumers.push(consumer);  // Lưu trữ mỗi consumer vào mảng
+    console.log('Audio consumer created:', stt, {
+      id: consumer.id,
+      kind: consumer.kind,
+      rtpParameters: consumer.rtpParameters,
     });
-
-    // Kiểm tra SSRC của consumer
-    console.log("Consumer SSRC:", audioConsumer.rtpParameters.encodings[0].ssrc);
 
     // Kiểm tra kết nối và xác nhận dữ liệu đã bắt đầu được nhận
     setInterval(async () => {
-      const stats = await audioConsumer.getStats();
-      console.log('Audio Consumer Stats:', stats);
+      const stats = await consumer.getStats();
+      console.log('Audio Consumer Stats:', stt, stats);
     }, 5000);
-
-    // Tạo SDP content
-    const sdpContent = `
-v=0
-o=- 0 0 IN IP4 127.0.0.1
-s=AudioStream
-c=IN IP4 ${transport.tuple.localIp}
-t=0 0
-m=audio ${transport.tuple.localPort} RTP/AVP 96
-a=rtpmap:96 opus/48000/2
-a=ssrc:${audioConsumer.rtpParameters.encodings[0].ssrc}
-`;
-
-    // Lưu SDP file
-    fs.writeFileSync('consumer.sdp', sdpContent);
-    console.log('SDP file created successfully');
   } catch (err) {
     console.error('Error creating consumer:', err);
   }

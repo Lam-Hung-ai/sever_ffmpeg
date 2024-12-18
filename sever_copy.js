@@ -16,7 +16,7 @@ httpsServer.listen(9000, () => {
 
 let worker, router, producerTransport, consumerTransport, audioProducer, audioConsumer;
 
-const device_ip = '192.168.1.30'; // Thay đổi thành IP của máy chủ bạn
+const device_ip = 'fe80::f2bd:a464:dbe0:a34a'; // Thay đổi thành IP của máy chủ bạn
 
 (async () => {
   // Tạo Worker
@@ -46,13 +46,13 @@ const device_ip = '192.168.1.30'; // Thay đổi thành IP của máy chủ bạ
   producerTransport = await router.createPlainTransport({
     listenInfo: {
       protocol: "udp",
-      ip: "0.0.0.0",
+      ip: "::",
       announcedAddress: device_ip,
       port: 40001
     },
     rtcpListenInfo: {
       protocol: "udp",
-      ip: "0.0.0.0",
+      ip: "::",
       announcedAddress: device_ip,
       port: 40002
     },
@@ -65,13 +65,13 @@ const device_ip = '192.168.1.30'; // Thay đổi thành IP của máy chủ bạ
   consumerTransport = await router.createPlainTransport({
     listenInfo: {
       protocol: "udp",
-      ip: "0.0.0.0",
+      ip: "::",
       announcedAddress: device_ip,
       port: 40003
     },
     rtcpListenInfo: {
       protocol: "udp",
-      ip: "0.0.0.0",
+      ip: "::",
       announcedAddress: device_ip,
       port: 40004
     },
@@ -148,11 +148,9 @@ o=- 0 0 IN IP4 ${device_ip}
 s=AudioStream
 c=IN IP4 ${device_ip}
 t=0 0
-m=audio ${consumerTransport.tuple.localPort} RTP/AVP 96
+m=audio 10003 RTP/AVP 96
 a=rtpmap:96 opus/48000/2
 a=fmtp:96 minptime=10
-a=ssrc:${audioConsumer.rtpParameters.encodings[0].ssrc}
-a=rtcp:${consumerTransport.tuple.localPort + 1} IN IP4 ${device_ip}
 `;
     
     
