@@ -48,12 +48,12 @@ gst-launch-1.0 rtspsrc location=rtsp://{server_ip}:{port}/test latency=700 ! que
 ### Phát audio từ 1 file 
 - Lệnh FFmpeg ( tùy chọn gửi rtcp hoặc không )
 ```bash
-ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -payload_type 96 -ssrc {ssrc của producer} -f rtp "rtp://{server_ip}:{rtp_port}?rtcpport={rtcp_port}&localrtpport={rtp_port máy local}&localrtcpport={rtcp_port_máy_local}"
+ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -payload_type 96 -ssrc 12345678 -f rtp rtp "rtp://{server_ip}:{rtp_port}?rtcpport={rtcp_port}&localrtpport={rtp_port máy local}&localrtcpport={rtcp_port_máy_local}"
 ```  
 
 - Lệnh GStreamer
 ```bash
-gst-launch-1.0 filesrc location=/home/lamhung/Downloads/di_giua_troi_ruc_ro.mp3 ! decodebin ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=32000 bitrate-type=vbr complexity=6 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ssrc={ssrc của producer} ! udpsink host={server_ip} port={server_port}
+gst-launch-1.0 -v rtpbin name=rtpbin     filesrc location=/home/lamhung/Downloads/me_yeu_con.mp3 ! decodebin ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=32000 bitrate-type=vbr complexity=6 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ssrc=12345678 ! rtpbin.send_rtp_sink_0     rtpbin.send_rtp_src_0 ! udpsink host=10.0.0.1 port=40001 bind-port=10001     rtpbin.send_rtcp_src_0 ! udpsink host=10.0.0.1 port=40002 bind-port=10002 sync=false async=false
 ```
 
 ### Phát audio từ MIC
@@ -63,7 +63,7 @@ ffmpeg -re -f alsa -i hw:0,0 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -p
 ```
 - Lệnh GStreamer
 ```bash
-gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=32000 bitrate-type=vbr complexity=6 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ssrc={ssrc của producer} ! udpsink host={server_ip} port={server_port}
+gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=32000 bitrate-type=vbr complexity=6 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ssrc={ssrc của producer} ! udpsink host={server_ip} port={server_port}```
 ```
 
 ## Consumer
@@ -87,17 +87,22 @@ a=fmtp:96 minptime=10
 port_nhận_audio_từ_server tương ứng với {rtp_port máy local} khi gửi audio nhở tới server
 - Nhận audio từ Mediasoup server
 ```bash
-ffplay -protocol_whitelist file,udp,rtp -i consumer.sdp
+ffmpeg -protocol_whitelist file,udp,rtp -i consumer.sdp -f alsa default
+```
+```bash
+ffmpeg -protocol_whitelist file,udp,rtp -i consumer.sdp -f wav - | aplay
 ```
 
 ### Lệnh GStreamer
 - Gửi audio nhỏ tới server
 ```bash
-gst-launch-1.0 -v audiotestsrc freq=440 num-buffers=5 wave=sine ! audioconvert ! audioresample ! opusenc bitrate=32000 ! rtpopuspay pt=96 ! udpsink host={server_ip}port={server_port} bind-address=127.0.0.1 bind-port={rtp_port_máy_local} sync=false
+gst-launch-1.0 -v rtpbin name=rtpbin \
+    audiotestsrc freq=440 num-buffers=5 wave=sine ! audioconvert ! audioresample ! opusenc ! rtpopuspay ! rtpbin.send_rtp_sink_0 \
+    rtpbin.send_rtp_src_0 ! udpsink host=10.0.0.1 port=40003 bind-port=10003 \
+    rtpbin.send_rtcp_src_0 ! udpsink host=10.0.0.1 port=40004 bind-port=10004 sync=false async=false
 ```
 - Nhận audio từ Mediasoup server
 ```bash
-gst-launch-1.0 -v udpsrc port={rtp_port_máy_local} ! application/x-rtp,media=audio,encoding-name=OPUS,payload=96 ! queue max-size-buffers=100 max-size-time=0 ! rtpopusdepay ! queue max-size-buffers=100 max-size-time=0 ! opusdec ! queue max-size-buffers=100 max-size-time=0 ! autoaudiosink
+gst-launch-1.0 -v udpsrc port={port_nhận_dữ_liệu} buffer-size=65536 ! application/x-rtp,media=audio,encoding-name=OPUS,payload=96 ! queue max-size-time=700000000 ! rtpopusdepay ! queue max-size-buffers=200 max-size-time=0 ! opusdec ! queue max-size-buffers=200 max-size-time=0 ! autoaudiosink sync=true
 ```  
-{rtp_port_máy_local} phải giống nhau khi gửi audio nhỏ tới server cũng như khi gửi lên
-
+port_nhận_dữ_liệu = bind-port_gửi dữ liệu rtp lúc gửi audio nhỏ

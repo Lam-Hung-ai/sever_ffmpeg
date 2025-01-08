@@ -1,0 +1,10 @@
+v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=SƠN TÙNG M-TP | ĐỪNG LÀM TRÁI TIM ANH ĐAU | OFFICIAL MUSIC VIDEO
+c=IN IP4 192.168.1.30
+t=0 0
+a=tool:libavformat 60.16.100
+m=audio 40001 RTP/AVP 96
+b=AS:128
+a=rtpmap:96 opus/48000/2
+a=fmtp:96 sprop-stereo=1
