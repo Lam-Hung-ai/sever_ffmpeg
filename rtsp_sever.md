@@ -15,7 +15,7 @@ ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libo
 
 - Lệnh GStreamer
 ```bash
-gst-launch-1.0 filesrc location=tat_nuoc_dau_dinh.mp3  ! decodebin ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=16000,channels=2 ! opusenc bitrate=16000 bitrate-type=vbr complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host={server_ip} port={port}
+gst-launch-1.0 filesrc location=/home/lamhung/Downloads/di_de_tro_ve.mp3  ! decodebin ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=16000,channels=2 ! opusenc bitrate=16000 bitrate-type=2 complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host=27.71.17.174 port=40001 sync=true
 ```
 
 ### Phát audio từ MIC
@@ -25,7 +25,7 @@ ffmpeg -re -f alsa -i hw:0,0 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -p
 ```
 - Lệnh GStreamer
 ```bash
-gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=16000,channels=2 ! opusenc bitrate=16000 bitrate-type=vbr complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host={server_ip} port={port}
+gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=16000 bitrate-type=2 complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host={server_ip} port={port} sync=true
 ```
 
 ## Consumer
@@ -40,7 +40,8 @@ ffmpeg -i rtsp://{server_ip}:{port}/test -f wav - | aplay
 
 ### Lệnh GStreamer ( lệnh đã tối ưu cho thiết bị IoT nhưng trễ khoảng 1.2s)
 ```bash
-gst-launch-1.0 rtspsrc location=rtsp://{server_ip}:{port}/test latency=200 ! queue max-size-buffers=100 max-size-time=0 ! application/x-rtp,media=audio,encoding-name=OPUS ! queue max-size-buffers=100 max-size-time=0 ! rtpopusdepay ! queue max-size-buffers=100 max-size-time=0 ! opusdec ! queue max-size-buffers=100 max-size-time=0 ! autoaudiosink
+gst-launch-1.0 rtspsrc location=rtsp://27.71.17.174:8554/test latency=0 ! rtpjitterbuffer latency=400 ! queue max-size-buffers=200 max-size-time=0 ! application/x-rtp,media=audio,encoding-name=OPUS ! queue max-size-buffers=100 max-size-time=0 ! rtpopusdepay ! opusdec ! autoaudiosink sync=true
+
 ```  
 # *Mediasoup server
 ## Producer
