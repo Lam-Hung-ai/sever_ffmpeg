@@ -10,7 +10,7 @@ Server chỉ có chức năng chuyển tiếp dữ liệu
 ### Phát audio từ 1 file 
 - Lệnh FFmpeg
 ```bash
-ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -payload_type 96 -f rtp "rtp://{server_ip}:{port}"
+gst-launch-1.0 filesrc location=/home/lamhung/Downloads/vietnam_toi.mp3  ! decodebin ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=16000,channels=1 ! opusenc bitrate=16000 bitrate-type=2 complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host=27.71.17.174 port=40001 sync=true
 ```  
 
 - Lệnh GStreamer
@@ -25,7 +25,7 @@ ffmpeg -re -f alsa -i hw:0,0 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -p
 ```
 - Lệnh GStreamer
 ```bash
-gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc bitrate=16000 bitrate-type=2 complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host={server_ip} port={port} sync=true
+gst-launch-1.0 alsasrc ! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=16000,channels=1 ! opusenc bitrate=16000 bitrate-type=2 complexity=5 frame-size=20 bandwidth=wideband dtx=true ! rtpopuspay ! udpsink host=27.71.17.174 port=40001 sync=true
 ```
 
 ## Consumer
@@ -38,17 +38,16 @@ ffmpeg -i rtsp://{server_ip}:{port}/test -f alsa default
 ffmpeg -i rtsp://{server_ip}:{port}/test -f wav - | aplay
 ```
 
-### Lệnh GStreamer ( lệnh đã tối ưu cho thiết bị IoT nhưng trễ khoảng 1.2s)
+### Lệnh GStreamer ( lệnh đã tối ưu cho thiết bị IoT nhưng trễ khoảng 0.8s)
 ```bash
-gst-launch-1.0 rtspsrc location=rtsp://27.71.17.174:8554/test latency=0 ! rtpjitterbuffer latency=400 ! queue max-size-buffers=200 max-size-time=0 ! application/x-rtp,media=audio,encoding-name=OPUS ! queue max-size-buffers=100 max-size-time=0 ! rtpopusdepay ! opusdec ! autoaudiosink sync=true
-
+gst-launch-1.0 rtspsrc location=rtsp://27.71.17.174:8554/test latency=0 ! rtpjitterbuffer latency=400 ! queue max-size-buffers=100 max-size-time=0 ! application/x-rtp,media=audio,encoding-name=OPUS ! rtpopusdepay ! opusdec ! autoaudiosink sync=true
 ```  
 # *Mediasoup server
 ## Producer
 ### Phát audio từ 1 file 
 - Lệnh FFmpeg ( tùy chọn gửi rtcp hoặc không )
 ```bash
-ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -payload_type 96 -ssrc 12345678 -f rtp rtp "rtp://{server_ip}:{rtp_port}?rtcpport={rtcp_port}&localrtpport={rtp_port máy local}&localrtcpport={rtcp_port_máy_local}"
+ffmpeg -re -i /home/lamhung/Downloads/dung_lam_trai_tim_anh_dau.mp3 -acodec libopus -b:a 32k -vbr on -ar 48000 -ac 2 -payload_type 96 -ssrc 12345678 -f rtp "rtp://{server_ip}:{rtp_port}?rtcpport={rtcp_port}&localrtpport={rtp_port máy local}&localrtcpport={rtcp_port_máy_local}"
 ```  
 
 - Lệnh GStreamer
